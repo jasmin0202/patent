@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>발명 조사 시스템 — 포트폴리오</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: 210mm; height: 296mm; overflow: hidden;
+    font-family: "Noto Sans KR", "Malgun Gothic", sans-serif;
+    color: #1c1c1e; font-size: 8.7pt; line-height: 1.38;
+    padding: 10mm 13mm 9mm 13mm;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  a { color: inherit; text-decoration: none; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1c1c1e; padding-bottom: 4mm; margin-bottom: 4mm; }
+  h1 { font-size: 19pt; margin: 0 0 1mm 0; letter-spacing: -0.3px; font-weight: 700; }
+  .sub { font-size: 10pt; color: #444; }
+  .meta { text-align: right; font-size: 8.4pt; color: #444; line-height: 1.5; }
+  .meta b { color: #1c1c1e; }
+  .tags { margin-top: 1.5mm; }
+  .tag { display: inline-block; border: 1px solid #bbb; border-radius: 3px; padding: 0 5px; font-size: 7.6pt; margin-left: 3px; color: #333; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 7mm; }
+  section { margin-bottom: 2.8mm; break-inside: avoid; }
+  h2 { font-size: 9.6pt; margin: 0 0 1.3mm 0; padding-bottom: 0.8mm; border-bottom: 1px solid #ccc; font-weight: 700; }
+  h2 span { color: #777; font-weight: 400; font-size: 8pt; margin-left: 4px; }
+  p { margin: 0 0 1.4mm 0; }
+  ul { margin: 0; padding-left: 4mm; }
+  li { margin-bottom: 1mm; }
+  li b, p b { font-weight: 700; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 7.9pt; }
+  th, td { border-bottom: 1px solid #ddd; padding: 0.9mm 1.4mm; text-align: left; vertical-align: top; }
+  th { background: #f2f2f2; font-weight: 700; }
+
+  .nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2mm; margin: 1mm 0 2mm 0; }
+  .num { border: 1px solid #ddd; border-radius: 4px; padding: 1.6mm 2mm; }
+  .num .v { font-size: 14pt; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+  .num .l { font-size: 7.4pt; color: #555; margin-top: 0.6mm; }
+
+  .diagram { width: 100%; height: auto; display: block; margin: 1mm 0 1.5mm 0; }
+  .cap { font-size: 7.6pt; color: #555; margin-top: 0.5mm; }
+  footer { position: absolute; left: 13mm; right: 13mm; bottom: 7mm; border-top: 1px solid #ccc; padding-top: 1.6mm; font-size: 7.8pt; color: #555; display: flex; justify-content: space-between; }
+  code { font-family: Consolas, "Noto Sans KR", monospace; font-size: 8pt; background: #f3f3f3; padding: 0 3px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>발명 조사 시스템 <span style="font-weight:400;color:#555;font-size:12pt">Invention Research Pipeline</span></h1>
+    <div class="sub">넓은 제품 질문을 받아 에이전트 7개가 조사하고, <b>모든 주장에 출처와 근거 등급을 붙인</b> 기획 보고서를 만드는 멀티 에이전트 파이프라인</div>
+    <div class="tags">
+      <span class="tag" style="margin-left:0">Claude Code · 서브에이전트/스킬/MCP</span><span class="tag">Python 3.12 (표준 라이브러리)</span><span class="tag">Node.js MCP 서버</span><span class="tag">GitHub Actions</span><span class="tag">KIPRIS Plus API</span>
+    </div>
+  </div>
+  <div class="meta">
+    <b>jasmin0202</b> · 1인 설계·구현<br>
+    2026.10 · MIT<br>
+    <b>github.com/jasmin0202/patent</b>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+
+  <section>
+    <h2>문제 <span>LLM에게 시장 조사를 시키면 생기는 일</span></h2>
+    <p>그럴듯한 문장은 나오지만 <b>어디서 왔는지 모른다.</b> 없는 특허번호를 만들고, 댓글 한 개를 시장 전체의 불만처럼 쓰고, 출처 링크가 죽어 있어도 모른다. 이 셋을 프롬프트가 아니라 <b>구조</b>로 막는 것이 목표였다.</p>
+    <table>
+      <tr><th style="width:38%">흔한 실패</th><th>이 시스템의 장치</th></tr>
+      <tr><td>출처 없는 주장</td><td>출처 없는 문장은 "미확인" 등급. 보고서 모든 줄에 등급이 붙는다</td></tr>
+      <tr><td>지어낸 특허번호</td><td>검색 결과·API 응답에서 복사한 번호만 허용. 검증 단계에서 번호와 링크를 기계 대조</td></tr>
+      <tr><td>과장된 일반화</td><td>독립 출처 3개 이상이어야 "확인됨". 같은 글의 댓글·다른 URL은 1개로 센다</td></tr>
+      <tr><td>죽은 링크 · 끝없는 조사</td><td>모든 URL을 실제로 열어 판정. 담당별 검색 횟수 상한</td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>구조 <span>역할 7개, 사람은 두 번만 개입</span></h2>
+    <svg class="diagram" viewBox="0 0 400 178" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans KR, Malgun Gothic, sans-serif" font-size="8.2">
+      <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#555"/></marker></defs>
+      <rect x="193" y="42" width="114" height="134" rx="4" fill="none" stroke="#999" stroke-dasharray="3 2"/>
+      <text x="200" y="50" fill="#777" font-size="7">2단계 (후보마다)</text>
+      <g stroke="#555" stroke-width="1" fill="none" marker-end="url(#a)">
+        <line x1="60" y1="24" x2="60" y2="52"/>
+        <line x1="60" y1="80" x2="60" y2="104"/>
+        <line x1="112" y1="118" x2="136" y2="118"/>
+        <line x1="60" y1="132" x2="60" y2="152"/>
+        <line x1="190" y1="118" x2="193" y2="118"/>
+        <line x1="110" y1="15" x2="193" y2="52"/>
+        <line x1="250" y1="80" x2="250" y2="96"/>
+        <line x1="250" y1="124" x2="250" y2="144"/>
+        <line x1="307" y1="158" x2="330" y2="158"/>
+      </g>
+      <g stroke="#999" stroke-width="0.8" fill="none" stroke-dasharray="2 2">
+        <line x1="300" y1="62" x2="330" y2="44"/>
+        <line x1="300" y1="66" x2="330" y2="64"/>
+        <line x1="300" y1="72" x2="330" y2="106"/>
+      </g>
+      <!-- orchestrator -->
+      <rect x="10" y="6" width="100" height="18" rx="3" fill="#1c1c1e"/>
+      <text x="60" y="18" text-anchor="middle" fill="#fff" font-weight="700">총괄 (조사하지 않음)</text>
+      <text x="118" y="10" fill="#555" font-size="7">질문 분할 · 점수표 · 보고서</text>
+      <text x="118" y="20" fill="#555" font-size="7">담당을 띄우고 결과 파일만 읽음</text>
+      <!-- stage 1 -->
+      <rect x="10" y="52" width="100" height="28" rx="3" fill="#fff" stroke="#333"/>
+      <text x="60" y="63" text-anchor="middle" font-weight="700">1단계 불편 발굴 ×N</text>
+      <text x="60" y="74" text-anchor="middle" font-size="7" fill="#444">영역마다 병렬 · 커뮤니티·리뷰·통계</text>
+      <rect x="10" y="104" width="100" height="28" rx="3" fill="#fff" stroke="#333"/>
+      <text x="60" y="115" text-anchor="middle" font-weight="700">점수표 → 후보 3</text>
+      <text x="60" y="126" text-anchor="middle" font-size="7" fill="#444">빈도·강도·해법부족·제작성</text>
+      <rect x="136" y="108" width="54" height="20" rx="10" fill="#fff3cd" stroke="#b8860b"/>
+      <text x="163" y="121" text-anchor="middle" font-size="7.5">사람이 고름</text>
+      <rect x="10" y="152" width="100" height="20" rx="3" fill="#fff" stroke="#333"/>
+      <text x="60" y="165" text-anchor="middle" font-size="7.5">보조 조사원 (한 출처·한 질문)</text>
+      <!-- stage 2 -->
+      <rect x="200" y="54" width="100" height="26" rx="3" fill="#fff" stroke="#333"/>
+      <text x="250" y="65" text-anchor="middle" font-weight="700">기존 해법 · 왜 지금</text>
+      <text x="250" y="75" text-anchor="middle" font-size="7" fill="#444">제품 + 특허(KIPRIS MCP) · 통계</text>
+      <rect x="200" y="96" width="100" height="28" rx="3" fill="#fff" stroke="#333"/>
+      <text x="250" y="107" text-anchor="middle" font-weight="700">디자인 · 구현원가</text>
+      <text x="250" y="118" text-anchor="middle" font-size="7" fill="#444">기능 3개 · BOM · 인증</text>
+      <rect x="200" y="144" width="100" height="28" rx="3" fill="#e8f0fe" stroke="#1a56db"/>
+      <text x="250" y="155" text-anchor="middle" font-weight="700">검증</text>
+      <text x="250" y="166" text-anchor="middle" font-size="7" fill="#444">출처확인.py → 주장별 판정</text>
+      <!-- outputs -->
+      <rect x="330" y="148" width="64" height="20" rx="3" fill="#1c1c1e"/>
+      <text x="362" y="161" text-anchor="middle" fill="#fff" font-size="7.5">최종 보고서</text>
+      <rect x="330" y="54" width="64" height="20" rx="3" fill="#fff" stroke="#999" stroke-dasharray="2 2"/>
+      <text x="362" y="67" text-anchor="middle" font-size="7.2">Google Patents</text>
+      <rect x="330" y="30" width="64" height="20" rx="3" fill="#fff" stroke="#999" stroke-dasharray="2 2"/>
+      <text x="362" y="43" text-anchor="middle" font-size="7.2">KIPRIS Plus MCP</text>
+      <rect x="330" y="100" width="64" height="20" rx="3" fill="#fff" stroke="#999" stroke-dasharray="2 2"/>
+      <text x="362" y="113" text-anchor="middle" font-size="7.2">Aside (읽기 전용)</text>
+    </svg>
+    <div class="cap">담당은 서로를 모르고 결과는 파일로만 오간다. 서브에이전트는 서브에이전트를 못 띄우므로 보조 조사원은 총괄이 대신 띄운다.</div>
+  </section>
+
+  <section>
+    <h2>설계 결정 <span>왜 그렇게 했나</span></h2>
+    <ul>
+      <li><b>총괄은 조사하지 않는다.</b> 검색 결과가 컨텍스트를 채우면 판단이 흐려진다. 총괄은 쪼개고, 띄우고, 줄 세우는 일만.</li>
+      <li><b>근거 등급은 내릴 수만 있다.</b> 담당이 "확인됨"이라 써도 검증이 독립 출처 3개를 못 세면 "추정". 담당마다 기준을 달리 적는 일이 실제로 생겨 기준을 한 파일로 고정했다.</li>
+      <li><b>우회하지 않는다.</b> 로그인·캡차·차단은 멈추고 "막힌 출처"에 적는다. 로그인 사이트는 Aside 브라우저로 읽기만.</li>
+    </ul>
+  </section>
+
+</div>
+<div class="col">
+
+  <section>
+    <h2>결과 <span>실제 실행: "욕실용품 하나 기획해봐"</span></h2>
+    <div class="nums">
+      <div class="num"><div class="v">18</div><div class="l">불편 순위화 (영역 7개)</div></div>
+      <div class="num"><div class="v">150</div><div class="l">URL을 17초에 기계 대조</div></div>
+      <div class="num"><div class="v">125/18/7</div><div class="l">열림 / 차단 의심 / 닫힘</div></div>
+      <div class="num"><div class="v">17 ✓</div><div class="l">단위 테스트 · CI 통과</div></div>
+    </div>
+    <p>1위 후보 "흡착·무타공 고정이 떨어진다"(22.5/25)는 수납·샤워·노인안전 세 영역에서 따로 나온 불편이었다. 후보 3개의 2단계 산출물(기존 제품·특허, 왜 지금, 보조 조사)이 저장소 <code>examples/</code>에 그대로 있다.</p>
+    <p>검증 도구가 잡아낸 것: 같은 글이 <code>www</code> 유무로 두 번 세어진 것, 요약을 인용문처럼 적은 줄들, 사라진 레딧 미러 링크.</p>
+  </section>
+
+  <section>
+    <h2>직접 만든 것 <span>vs 가져다 쓴 것</span></h2>
+    <table>
+      <tr><th style="width:50%">설계·구현</th><th>활용</th></tr>
+      <tr><td>역할 7개의 분리와 파일 기반 협업, 총괄 절차(스킬)</td><td>Claude Code 서브에이전트·스킬·MCP 실행 환경</td></tr>
+      <tr><td>근거 등급 체계, 가중 점수표, 상한 규칙, 보고서 양식</td><td>SilverQ/kipris-mcp (KIPRIS 서버, 그대로)</td></tr>
+      <tr><td><code>출처확인.py</code>: URL 병렬 확인, 같은 글 묶기, 로그인·캡차 판별, 특허번호↔링크, 인용문↔본문 대조 (표준 라이브러리만)</td><td>deep-research-skill의 인용 검증 발상(영어 논문용이라 새로 씀), VoltAgent 프롬프트 일부 발상</td></tr>
+      <tr><td>단위 테스트 17개(네트워크 없음), GitHub Actions CI(테스트·문법·키 유출 검사)</td><td></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2>어려웠던 점과 해결</h2>
+    <ul>
+      <li><b>특허번호 이중 집계.</b> 본문 번호와 링크 안의 번호를 같이 세는 버그를 단위 테스트가 잡았다. URL을 떼어낸 줄에서만 번호를 찾게 고쳤다.</li>
+      <li><b>한글 URL.</b> 경로에 한글이 있으면 ASCII 오류로 "닫힘"이 됐다. 퍼센트 인코딩과 IDNA 변환을 넣어 실제로 열리게 했다.</li>
+      <li><b>"로그인" 오탐.</b> 정상 글도 메뉴의 "로그인" 때문에 차단으로 잡혔다. 제목에 단서가 있거나 본문이 아주 짧을 때만 차단 의심으로 좁혔다.</li>
+      <li><b>외부 코드와 비밀값.</b> 제3자 MCP 서버는 소스를 읽고 저장소 밖에 두었고, API 키는 환경변수로만. CI가 키 패턴을 검사한다.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>배운 것</h2>
+    <p>LLM 시스템의 신뢰도는 모델이 아니라 <b>검증을 어디에 두느냐</b>에서 나온다. "출처 없으면 미확인" 규칙 하나와 그것을 기계로 확인하는 도구가, 프롬프트를 다듬는 것보다 결과를 더 많이 바꿨다.</p>
+  </section>
+
+</div>
+</div>
+
+<footer>
+  <span>저장소 github.com/jasmin0202/patent · 실행 예시 examples/2026-10-23-bathroom · 커밋 6개, CI passing</span>
+  <span>발명 조사 시스템 · 1/1</span>
+</footer>
+
+</body>
+</html>
