@@ -1,0 +1,23 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 출처확인 도구 단위 테스트 (표준 라이브러리만, 네트워크 없음)
+        run: python -I -m unittest discover -s tests -v
+      - name: 문법·설정 파일 검사
+        run: |
+          python -I -m py_compile tools/출처확인.py
+          python -I -c "import json; json.load(open('.mcp.json', encoding='utf-8'))"
+      - name: 비밀값 유출 검사
+        run: |
+          ! grep -rIn --exclude-dir=.git --exclude-dir=node_modules -E '(ServiceKey|KIPRIS_API_KEY|AccessKey)\s*[:=]\s*"[A-Za-z0-9+/=]{20,}' .
