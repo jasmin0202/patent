@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "aside": {
+      "command": "aside",
+      "args": ["mcp"]
+    },
+    "kipris": {
+      "command": "node",
+      "args": ["D:/patent/mcp/kipris-mcp/src/index.js"],
+      "env": {
+        "KIPRIS_API_KEY": "${KIPRIS_API_KEY:-}"
+      }
+    }
+  }
+}
