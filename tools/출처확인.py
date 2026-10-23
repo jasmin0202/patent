@@ -12,9 +12,15 @@
 우리 결과 양식(한국어 표·인라인 URL)에 맞게 새로 썼다.
 
 사용:
-    python -I tools/출처확인.py runs/2026-10-23-bathroom/
+    python -I tools/출처확인.py runs/2026-10-23-bathroom/          # 하위 후보 폴더까지 재귀
     python -I tools/출처확인.py runs/.../10-기존해법.md --out runs/.../29-출처확인.md
     python -I tools/출처확인.py <경로> --strict      # 닫힌 출처가 하나라도 있으면 종료코드 1
+
+특허번호 대조 규칙:
+    - URL이 없는 줄의 번호도 검사한다. 같은 파일·같은 폴더 안에 일치하는 링크가 있으면 그 자리를 적고,
+      어디에도 없으면 "링크 없음 → 삭제 대상"으로 표시한다.
+    - 국가 코드가 있으면 링크에도 같은 국가 코드 뒤에 번호 전체가 통째로 있어야 한다.
+      (KR101234567B1 ↔ US991234567B1 불일치, KR1234567 ↔ KR101234567 불일치)
 
 판정:
     열림        HTTP 200대, 로그인·차단 흔적 없음
@@ -94,17 +100,32 @@ def normalize(url: str) -> str:
 
 
 def collect(paths):
-    """파일 목록 → [(파일, 줄번호, 줄 텍스트, url)]"""
+    """파일 목록 → (files, rows, patent_lines)
+
+    rows         = [(파일, 줄번호, 줄 텍스트, url)]  — URL이 있는 줄만 (URL 열기·인용 대조용)
+    patent_lines = [(파일, 줄번호, 줄 텍스트)]        — 특허번호 패턴이 있는 줄 전부, URL 유무와 무관
+                   (링크 없이 적힌 특허번호를 놓치지 않으려고 따로 모은다)
+    폴더를 주면 하위 폴더(후보 폴더 등)까지 재귀로 *.md 를 모은다.
+    """
     files = []
     for p in paths:
         p = Path(p)
         if p.is_dir():
-            files.extend(sorted(p.glob("*.md")))
+            files.extend(sorted(p.rglob("*.md")))
         elif p.is_file():
             files.append(p)
     # 이 스크립트가 만든 결과 파일과 검증 결과는 다시 읽지 않는다 (URL이 잘려 있어 가짜 404가 난다)
     files = [f for f in files if "출처확인" not in f.name and not f.name.startswith("30-")]
+    # 같은 파일이 두 경로로 들어오면 한 번만
+    uniq_files, seen = [], set()
+    for f in files:
+        key = str(f.resolve())
+        if key not in seen:
+            seen.add(key)
+            uniq_files.append(f)
+    files = uniq_files
     rows = []
+    patent_lines = []
     for f in files:
         try:
             text = f.read_text(encoding="utf-8")
@@ -118,7 +139,9 @@ def collect(paths):
                     continue
                 seen_in_line.add(url)
                 rows.append((f, n, line, url))
-    return files, rows
+            if PATENT_RE.search(URL_RE.sub(" ", line)):
+                patent_lines.append((f, n, line))
+    return files, rows, patent_lines
 
 
 # ----------------------------------------------------------------------------
@@ -234,11 +257,49 @@ def compact(s: str) -> str:
     return re.sub(r"[\s\-/,.()\[\]]", "", s).upper()
 
 
-def patent_checks(rows):
-    """줄 안의 특허번호와 그 줄의 링크가 맞는지. 링크 없는 번호도 잡는다."""
-    out = []
+PATENT_PARSE_RE = re.compile(r"^(KR|US|WO|EP|JP|CN)?(\d+)([A-Z]\d?)?$")
+
+
+def parse_patent(num: str):
+    """'KR 101234567 B1' → ('KR', '101234567', 'B1'); '10-2020-0012345' → ('', '1020200012345', '')"""
+    m = PATENT_PARSE_RE.match(compact(num))
+    if not m:
+        return "", compact(num), ""
+    return m.group(1) or "", m.group(2), m.group(3) or ""
+
+
+def patent_link_matches(num: str, url: str) -> bool:
+    """본문의 특허번호가 링크의 번호와 같은가.
+
+    - 국가 코드가 있으면 링크에도 같은 국가 코드 바로 뒤에 번호 전체가 있어야 한다.
+      (KR101234567B1 ↔ .../US991234567B1 은 뒷자리가 같아도 불일치)
+    - 번호는 앞뒤에 다른 숫자가 붙지 않은 통째 토큰이어야 한다.
+      (KR1234567 ↔ KR101234567 은 불일치)
+    - 국가 코드 없는 KIPRIS 출원·등록번호는 링크 안의 숫자 토큰과 통째로 같아야 한다.
+      (doi.org/10.8080/1020260138772, kipris ...applno=1020260138772)
+    - 종류 코드(B1, A 등)는 비교하지 않는다. Google Patents 링크가 종류 코드를 생략하기도 한다.
+    """
+    country, digits, _kind = parse_patent(num)
+    if not digits:
+        return False
+    hay = url.upper().replace("-", "").replace("%2D", "")
+    if country:
+        return re.search(rf"(?<![A-Z0-9]){country}{digits}(?!\d)", hay) is not None
+    return re.search(rf"(?<!\d){digits}(?!\d)", hay) is not None
+
+
+def patent_checks(lines):
+    """줄 안의 특허번호와 그 줄의 링크가 맞는지. 링크 없는 번호도 잡는다.
+
+    lines: (파일, 줄번호, 줄 텍스트[, ...]) 튜플 목록. collect()의 patent_lines 를 넘기면
+    URL이 없는 줄의 특허번호도 검사된다. (이전에는 URL 있는 줄만 받아 링크 없는 번호를 놓쳤다.)
+    """
+    # 1차: 줄마다 번호·특허 링크를 뽑고, 번호가 어느 파일·줄의 링크와 일치하는지 색인한다.
+    parsed = []          # (f, n, nums, plinks)
     seen_lines = set()
-    for f, n, line, _ in rows:
+    linked_at = {}       # compact(num) → [(파일, 줄)]  번호가 링크와 일치한 자리
+    for r in lines:
+        f, n, line = r[0], r[1], r[2]
         key = (str(f), n)
         if key in seen_lines:
             continue
@@ -253,14 +314,35 @@ def patent_checks(rows):
         if not nums:
             continue
         plinks = [u for u in links if any(h in u for h in PATENT_LINK_HOSTS)]
+        parsed.append((f, n, nums, plinks))
+        for num in nums:
+            if any(patent_link_matches(num, u) for u in plinks):
+                linked_at.setdefault(compact(num), []).append((f, n))
+
+    # 2차: 판정. 같은 줄에 링크가 없어도 같은 파일·같은 실행 폴더 안에 일치 링크가 있으면 그 자리를 적는다.
+    out = []
+    for f, n, nums, plinks in parsed:
         for num in nums:
             c = compact(num)
             if not plinks:
-                out.append((f, n, num, "", "링크 없음 → 규칙상 출력 불가, 삭제 대상"))
+                places = [(pf, pn) for pf, pn in linked_at.get(c, []) if (str(pf), pn) != (str(f), n)]
+                same_file = [pn for pf, pn in places if str(pf) == str(f)]
+                if same_file:
+                    out.append((f, n, num, "", f"링크 없음(같은 파일 {same_file[0]}줄에 일치 링크 있음)"))
+                elif places:
+                    out.append((f, n, num, "", f"링크 없음(다른 파일 {places[0][0].name}:{places[0][1]}에 일치 링크 있음)"))
+                else:
+                    out.append((f, n, num, "", "링크 없음 → 규칙상 출력 불가, 삭제 대상"))
                 continue
-            matched = [u for u in plinks if c[-7:] in compact(u) or c in compact(u)]
+            matched = [u for u in plinks if patent_link_matches(num, u)]
             if matched:
                 out.append((f, n, num, matched[0], "번호가 링크에 포함됨"))
+                continue
+            # 같은 줄의 다른 번호가 링크와 맞으면 등록번호·출원번호 쌍일 가능성이 크다
+            siblings = [o for o in nums if o != num and any(patent_link_matches(o, u) for u in plinks)]
+            if siblings:
+                out.append((f, n, num, plinks[0],
+                            f"링크와 직접 불일치, 같은 줄의 {siblings[0]}이(가) 링크와 일치 → 등록·출원번호 쌍인지 확인"))
             else:
                 out.append((f, n, num, plinks[0], "번호와 링크 불일치 → 링크를 열어 출원인·번호 재확인"))
     return out
@@ -394,7 +476,7 @@ def main():
             pass
 
     ap = argparse.ArgumentParser(description="담당 결과 파일의 출처 URL을 실제로 열어 확인한다.")
-    ap.add_argument("paths", nargs="+", help=".md 파일 또는 폴더 (폴더면 안의 *.md 전부)")
+    ap.add_argument("paths", nargs="+", help=".md 파일 또는 폴더 (폴더면 하위 폴더까지 *.md 전부)")
     ap.add_argument("--out", help="결과를 저장할 .md 경로 (없으면 표준 출력)")
     ap.add_argument("--timeout", type=float, default=15.0, help="URL당 제한 시간(초), 기본 15")
     ap.add_argument("--workers", type=int, default=6, help="동시에 여는 수, 기본 6")
@@ -402,9 +484,9 @@ def main():
     ap.add_argument("--strict", action="store_true", help="닫힘이 하나라도 있으면 종료코드 1")
     args = ap.parse_args()
 
-    files, rows = collect(args.paths)
-    if not rows:
-        print("URL을 찾지 못했습니다.", file=sys.stderr)
+    files, rows, patent_lines = collect(args.paths)
+    if not rows and not patent_lines:
+        print("URL도 특허번호도 찾지 못했습니다.", file=sys.stderr)
         sys.exit(2)
 
     urls = []
@@ -422,16 +504,17 @@ def main():
         groups.setdefault(normalize(u), []).append(u)
     dup_groups = {k: v for k, v in groups.items() if len(v) > 1}
 
-    print(f"URL {len(urls)}개 확인 중 (파일 {len(files)}개)…", file=sys.stderr)
+    print(f"URL {len(urls)}개 확인 중 (파일 {len(files)}개, 특허번호 줄 {len(patent_lines)}개)…", file=sys.stderr)
     t0 = time.time()
     fetched = {}
-    with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        for u, res in zip(urls, ex.map(lambda x: fetch(x, args.timeout), urls)):
-            fetched[u] = res
+    if urls:
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            for u, res in zip(urls, ex.map(lambda x: fetch(x, args.timeout), urls)):
+                fetched[u] = res
     elapsed = time.time() - t0
 
     rows = [r for r in rows if r[3] in fetched]
-    patents = patent_checks(rows)
+    patents = patent_checks(patent_lines)  # URL 없는 줄의 번호도 포함
     quotes = quote_checks(rows, fetched)
     report = build_report(files, rows, fetched, dup_groups, patents, quotes, elapsed)
     if skipped:

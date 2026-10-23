@@ -1,15 +1,18 @@
 """
-tools/출처확인.py 단위 테스트. 네트워크를 쓰지 않는다.
+tools/출처확인.py 단위·통합 테스트. 네트워크를 쓰지 않는다.
 
 실행:
-    python -m unittest discover -s tests -v
+    python -I -m unittest discover -s tests -v
 """
 
 import importlib.util
+import io
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = importlib.util.spec_from_file_location("chulcheo", ROOT / "tools" / "출처확인.py")
@@ -94,6 +97,34 @@ class PatentChecks(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertIn("포함", out[0][4])
 
+    # --- 리뷰 지적 2: 뒷자리 7글자만 같아도 통과하던 문제 ---
+    def test_same_tail_different_country_is_mismatch(self):
+        line = "| KR101234567B1 | ... | https://patents.google.com/patent/US991234567B1/en |"
+        out = mod.patent_checks(self.rows(line))
+        self.assertIn("불일치", out[0][4])
+
+    def test_same_tail_longer_number_is_mismatch(self):
+        line = "| KR1234567 | ... | https://patents.google.com/patent/KR101234567B1/ko |"
+        out = mod.patent_checks(self.rows(line))
+        self.assertIn("불일치", out[0][4])
+
+    def test_kind_code_may_be_omitted_in_link(self):
+        line = "| US8234725B2 | Roth | https://patents.google.com/patent/US8234725 |"
+        out = mod.patent_checks(self.rows(line))
+        self.assertIn("포함", out[0][4])
+
+    def test_kipris_number_must_be_whole_token(self):
+        # 다른 출원번호 안에 부분 문자열로 들어 있어도 불일치
+        line = "출원번호 2020260138772 (https://doi.org/10.8080/1020260138772)"
+        out = mod.patent_checks(self.rows(line))
+        self.assertIn("불일치", out[0][4])
+
+    def test_accepts_three_tuples_from_collect(self):
+        line = "US4944478A Sullivan (https://patents.google.com/patent/US4944478)"
+        out = mod.patent_checks([(Path("10-기존해법.md"), 3, line)])
+        self.assertEqual(len(out), 1)
+        self.assertIn("포함", out[0][4])
+
 
 class QuoteChecks(unittest.TestCase):
     URL = "https://example.com/post/1"
@@ -128,9 +159,110 @@ class Collect(unittest.TestCase):
                 "a https://a.com/1 b https://a.com/long/url… c\n", encoding="utf-8")
             (d / "29-출처확인.md").write_text("x https://ignored.com/\n", encoding="utf-8")
             (d / "30-검증.md").write_text("x https://ignored2.com/\n", encoding="utf-8")
-            files, rows = mod.collect([d])
+            files, rows, _ = mod.collect([d])
             self.assertEqual([f.name for f in files], ["10-기존해법.md"])
             self.assertEqual([r[3] for r in rows], ["https://a.com/1"])
+
+    # --- 리뷰 지적 3: 상위 폴더를 주면 후보 폴더를 안 봤던 문제 ---
+    def test_recurses_into_candidate_folders(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            (d / "01-불편-샤워.md").write_text("x https://a.com/1\n", encoding="utf-8")
+            sub = d / "A-후보"
+            sub.mkdir()
+            (sub / "10-기존해법.md").write_text("y https://b.com/2\n", encoding="utf-8")
+            (sub / "29-출처확인.md").write_text("z https://ignored.com/\n", encoding="utf-8")
+            files, rows, _ = mod.collect([d])
+            self.assertEqual(sorted(f.name for f in files), ["01-불편-샤워.md", "10-기존해법.md"])
+            self.assertEqual(sorted(r[3] for r in rows), ["https://a.com/1", "https://b.com/2"])
+
+    # --- 리뷰 지적 1: URL 없는 줄의 특허번호가 검사 대상에서 빠지던 문제 ---
+    def test_patent_lines_include_lines_without_url(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            (d / "10-기존해법.md").write_text(
+                "링크 없는 KR102345678B1 을 언급\n"
+                "링크 있는 US4944478A (https://patents.google.com/patent/US4944478)\n"
+                "특허 아님 https://a.com/1\n", encoding="utf-8")
+            _, rows, patent_lines = mod.collect([d])
+            self.assertEqual([n for _, n, _ in patent_lines], [1, 2])
+            self.assertEqual(len(rows), 2)
+            out = mod.patent_checks(patent_lines)
+            verdicts = {num: v for _, _, num, _, v in out}
+            self.assertIn("링크 없음", verdicts["KR102345678B1"])
+            self.assertIn("포함", verdicts["US4944478A"])
+
+
+class EndToEnd(unittest.TestCase):
+    """실제 파일 입력 → main() → 보고서 파일. 네트워크는 fetch()를 가짜로 바꿔 끊는다."""
+
+    FAKE = {
+        "https://open.example.com/post": res(title="욕실 선반 후기", text="본문 " * 50 + "하루도 안지나서 떨어져버렸네요 " + "본문 " * 200),
+        "https://gone.example.com/x": res(status=404, error="HTTP 404"),
+        "https://patents.google.com/patent/KR102345678B1/ko": res(title="KR102345678B1", text="청구항 " * 300),
+    }
+
+    def fake_fetch(self, url, timeout):
+        return self.FAKE.get(url, res(status=None, error="연결 실패: 가짜"))
+
+    def test_folder_with_candidate_subfolder_to_report(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            (d / "01-불편-샤워.md").write_text(
+                '- "하루도 안지나서 떨어져버렸네요" (https://open.example.com/post)\n'
+                "- 죽은 링크 https://gone.example.com/x\n", encoding="utf-8")
+            sub = d / "A-후보"
+            sub.mkdir()
+            (sub / "10-기존해법.md").write_text(
+                "| KR102345678B1 | 등록 | https://patents.google.com/patent/KR102345678B1/ko |\n"
+                "| KR999999999B1 | 링크 없이 적힌 번호 |\n"
+                "| KR101234567B1 | 다른 특허 링크 | https://patents.google.com/patent/US991234567B1/en |\n",
+                encoding="utf-8")
+            out = d / "29-출처확인.md"
+            argv = ["출처확인.py", str(d), "--out", str(out), "--workers", "1"]
+            with mock.patch.object(mod, "fetch", self.fake_fetch), \
+                 mock.patch.object(sys, "argv", argv), \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as cm:
+                    mod.main()
+            self.assertEqual(cm.exception.code, 0)
+            report = out.read_text(encoding="utf-8")
+            # 파일 2개(하위 폴더 포함), URL 4개 (US991234567B1 링크는 가짜 fetch에서 연결 실패 → 닫힘)
+            self.assertIn("파일 2개 · URL 4개", report)
+            self.assertIn("열림 2 / 차단 의심 0 / 닫힘 2", report)
+            # 특허: 일치 1, 링크 없음 1, 불일치 1 — 하위 폴더 파일에서 잡힘
+            self.assertIn("| 10-기존해법.md:1 | KR102345678B1 |", report)
+            self.assertIn("| 10-기존해법.md:2 | KR999999999B1 | - | 링크 없음", report)
+            self.assertIn("| 10-기존해법.md:3 | KR101234567B1 |", report)
+            self.assertIn("불일치", report)
+            # 인용문 대조
+            self.assertIn("| 발견 |", report)
+
+    def test_strict_exit_code_when_a_source_is_closed(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            (d / "10-기존해법.md").write_text("x https://gone.example.com/x\n", encoding="utf-8")
+            argv = ["출처확인.py", str(d), "--strict", "--out", str(d / "29-출처확인.md")]
+            with mock.patch.object(mod, "fetch", self.fake_fetch), \
+                 mock.patch.object(sys, "argv", argv), \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as cm:
+                    mod.main()
+            self.assertEqual(cm.exception.code, 1)
+
+    def test_patent_only_file_without_any_url_still_reports(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            (d / "12-보조-KIPRIS.md").write_text("출원번호 1020260138772 (링크 없음)\n", encoding="utf-8")
+            out = d / "29-출처확인.md"
+            argv = ["출처확인.py", str(d), "--out", str(out)]
+            with mock.patch.object(mod, "fetch", self.fake_fetch), \
+                 mock.patch.object(sys, "argv", argv), \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as cm:
+                    mod.main()
+            self.assertEqual(cm.exception.code, 0)
+            self.assertIn("1020260138772 | - | 링크 없음", out.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
