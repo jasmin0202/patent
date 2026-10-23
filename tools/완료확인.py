@@ -37,7 +37,8 @@ CANDIDATE_REQUIRED = ["10-기존해법.md", "11-왜지금.md", "20-디자인.md"
 GRADE_RE = re.compile(r"확인됨|추정|미확인|삭제|제외")
 CANDIDATE_DIR_RE = re.compile(r"^[A-Z]-")
 
-SEARCH_RE = re.compile(r"웹\s?검색\s*(?:최대\s*)?(\d+)\s*회")
+# "웹검색 20회", "웹검색 20/20(상한)", "웹검색 최대 10회" 모두 첫 숫자를 사용량으로 읽는다
+SEARCH_RE = re.compile(r"웹\s?검색\s*(?:최대\s*)?(\d+)\s*(?:회|/)")
 ASIDE_RE = re.compile(r"Aside\s*(?:작업\s*)?(\d+)\s*회?")
 
 
@@ -60,12 +61,16 @@ def check_files(run: Path):
     for name in ROOT_REQUIRED:
         if not (run / name).exists():
             problems.append(f"없음: {name}")
-    stage1 = any(run.glob("01-불편-*.md"))
+    # 1단계를 돌렸는지는 영역·점수표 파일로 판단한다. (2단계부터 시작한 실행도 보조로 01-불편-*.md 를 둘 수 있다)
+    stage1 = (run / "01-영역.md").exists() or (run / "02-점수표.md").exists()
     if stage1:
         for name in STAGE1_REQUIRED:
             if not (run / name).exists():
                 problems.append(f"없음: {name}")
     candidates = sorted(p for p in run.iterdir() if p.is_dir() and CANDIDATE_DIR_RE.match(p.name))
+    # 후보 폴더가 없으면(구체적 아이디어로 2단계부터 시작한 실행) 실행 폴더 자체가 유일한 후보다
+    if not candidates and any(run.glob("1[01]-*.md")):
+        candidates = [run]
     for c in candidates:
         for name in CANDIDATE_REQUIRED:
             if not (c / name).exists():

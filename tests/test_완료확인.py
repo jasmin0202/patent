@@ -49,7 +49,7 @@ def make_run(d: Path, *, search1=8, search2=20, diggers=2, aside=0, report=REPOR
     c = d / "A-후보"
     c.mkdir()
     (c / "10-기존해법.md").write_text(f"# 기존 해법\n조사일 2026-10-23, 웹검색 {search2}회, Aside {aside}회\n", encoding="utf-8")
-    (c / "11-왜지금.md").write_text("# 왜 지금\n웹검색 20회(상한 소진)\n", encoding="utf-8")
+    (c / "11-왜지금.md").write_text("# 왜 지금\n사용 횟수: 웹검색 20/20 (상한 도달)\n", encoding="utf-8")
     (c / "20-디자인.md").write_text("# 디자인\n웹검색 0회\n", encoding="utf-8")
     (c / "21-구현원가.md").write_text("# 구현원가\n웹검색 20회(상한 소진), Aside 0회\n", encoding="utf-8")
     for i in range(diggers):
@@ -78,6 +78,25 @@ class Files(unittest.TestCase):
             make_run(d, missing=("20-디자인.md", "40-최종보고서.md"))
             _, _, problems = mod.check_files(d)
             self.assertEqual(problems, ["없음: A-후보/20-디자인.md", "없음: A-후보/40-최종보고서.md"])
+
+
+    def test_stage2_only_run_uses_root_as_candidate(self):
+        """구체적 아이디어로 2단계부터 시작한 실행: 후보 폴더 없음, 불편 파일은 보조로 있음."""
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            (d / "00-질문.md").write_text("# 질문\n", encoding="utf-8")
+            (d / "01-불편-한손.md").write_text("# 불편\n웹검색 20회\n", encoding="utf-8")
+            for name in ("10-기존해법.md", "11-왜지금.md", "20-디자인.md", "21-구현원가.md",
+                         "29-출처확인.md", "30-검증.md"):
+                (d / name).write_text("# x\n웹검색 20회\n", encoding="utf-8")
+            (d / "40-최종보고서.md").write_text(REPORT_OK, encoding="utf-8")
+            stage1, cands, problems = mod.check_files(d)
+            self.assertFalse(stage1)          # 영역·점수표가 없으므로 1단계 아님 → 01-영역 요구 안 함
+            self.assertEqual(cands, [d])
+            self.assertEqual(problems, [])
+            rows, cap_problems = mod.check_caps(d, stage1, cands)
+            self.assertEqual(cap_problems, [])
+            self.assertTrue(any(r[1] == "웹검색" for r in rows))
 
 
 class Caps(unittest.TestCase):
