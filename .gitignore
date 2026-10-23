@@ -1,0 +1,22 @@
+# 실행 결과 (개인 조사). 공개용 예시는 examples/ 에 복사해 둔다
+runs/*
+!runs/.gitkeep
+
+# 외부 MCP 서버 소스 (SilverQ/kipris-mcp). README의 설치 절차로 받는다
+mcp/kipris-mcp/
+
+# Node / Python
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 비밀값·로컬 설정
+.env
+.env.*
+.claude/settings.local.json
+
+# OS / 편집기
+.DS_Store
+Thumbs.db
+*.swp
