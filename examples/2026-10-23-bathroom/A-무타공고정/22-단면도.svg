@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 620" font-family="Malgun Gothic, Apple SD Gothic Neo, sans-serif" font-size="12">
+  <rect width="1000" height="620" fill="#ffffff"/>
+  <text x="20" y="28" font-size="17" font-weight="bold">후보 A — 무타공 안전 손잡이: 패드 측면 단면 (축척 2 px = 1 mm) · 치수는 20-디자인.md, 하중은 21-구현원가 권고</text>
+  <text x="20" y="46" fill="#666">접착 0. 아래 하중은 핀→타일 턱, 떼는 힘은 진공. 시험 전 설계 수치.</text>
+
+  <!-- wall: upper tile, grout, lower tile -->
+  <g>
+    <rect x="60" y="70" width="160" height="290" fill="#e9eef3" stroke="#9aa5b1"/>
+    <rect x="60" y="360" width="160" height="4" fill="#c9c2b8"/>
+    <rect x="216" y="360" width="4" height="4" fill="#ffffff"/>
+    <rect x="60" y="364" width="160" height="196" fill="#e9eef3" stroke="#9aa5b1"/>
+    <text x="70" y="90" fill="#555">타일 (유광, ≥150 H × 130 W)</text>
+    <text x="70" y="382" fill="#8a7d6b">가로 줄눈 2~3 mm, 깊이 d</text>
+    <text x="70" y="540" fill="#555">아래 타일</text>
+  </g>
+
+  <!-- pad housing -->
+  <g>
+    <rect x="226" y="80" width="30" height="280" rx="6" fill="#d9dde2" stroke="#444" stroke-width="1.5"/>
+    <!-- silicone lip and vacuum chamber -->
+    <rect x="220" y="135" width="6" height="190" fill="#f2c5c5" stroke="#b05050"/>
+    <rect x="221" y="140" width="4" height="180" fill="#ffffff"/>
+    <text x="262" y="150" fill="#b05050">LSR 실 립 폭 8, 35~40 Shore A</text>
+    <text x="262" y="166" fill="#333">진공 챔버 Ø95 × 깊이 3 (−0.6 → −0.45 bar)</text>
+    <!-- pump cap recessed on front face -->
+    <rect x="248" y="190" width="10" height="80" fill="#8c8c8c" stroke="#333"/>
+    <line x1="253" y1="190" x2="270" y2="118" stroke="#999" stroke-width="1"/>
+    <text x="262" y="88" fill="#333">펌프 캡 Ø40, 6회 누름 ≤1.5 kgf</text>
+    <text x="262" y="102" fill="#d2691e">새면 캡 2 mm 솟고 주황 띠 노출</text>
+    <!-- pin -->
+    <rect x="221" y="340" width="2" height="23" fill="#2b2b2b"/>
+    <rect x="221" y="361" width="4" height="2" fill="#2b2b2b"/>
+    <text x="262" y="356" fill="#2b2b2b">SUS304 핀 0.8 t × 70 L, 스프링 돌출 0~1.5</text>
+    <text x="262" y="372" fill="#2b2b2b">↳ 아래 타일 윗모서리에 걸림 (전단 하중 경로)</text>
+  </g>
+
+  <!-- arm and bar -->
+  <g>
+    <rect x="256" y="216" width="40" height="28" fill="#c7ccd1" stroke="#444"/>
+    <circle cx="320" cy="230" r="32" fill="#bfc5cb" stroke="#333" stroke-width="2"/>
+    <circle cx="320" cy="230" r="29" fill="none" stroke="#777" stroke-dasharray="3 3"/>
+    <text x="300" y="234" font-size="11">Ø32</text>
+    <text x="360" y="222" fill="#333">바 SUS304 Ø32 × 1.2 t × 560</text>
+    <text x="360" y="238" fill="#333">벽–바 중심 50 (→ 40 권고)</text>
+  </g>
+
+  <!-- dimension: wall to bar center -->
+  <g stroke="#1f6feb" fill="#1f6feb">
+    <line x1="220" y1="300" x2="320" y2="300" stroke-width="1"/>
+    <line x1="220" y1="294" x2="220" y2="306"/>
+    <line x1="320" y1="294" x2="320" y2="306"/>
+    <text x="252" y="316" font-size="11">50</text>
+    <!-- chamber center to pin -->
+    <line x1="208" y1="230" x2="208" y2="362" stroke-width="1"/>
+    <line x1="202" y1="230" x2="214" y2="230"/>
+    <line x1="202" y1="362" x2="214" y2="362"/>
+    <text x="178" y="300" font-size="11">65</text>
+    <!-- pad height -->
+    <line x1="245" y1="80" x2="245" y2="360" stroke-width="0" />
+  </g>
+
+  <!-- load arrows -->
+  <g>
+    <line x1="320" y1="262" x2="320" y2="330" stroke="#c0392b" stroke-width="3"/>
+    <polygon points="320,342 312,326 328,326" fill="#c0392b"/>
+    <text x="330" y="300" fill="#c0392b" font-weight="bold">아래로: 설계 목표 60 kgf (미확인)</text>
+    <text x="330" y="316" fill="#c0392b">1차 선언 권고 40 kgf (시험 60×60초)</text>
+    <text x="330" y="332" fill="#c0392b">핀 미작동 벽(d &lt; 0.5)에서는 ≈10 kgf</text>
+    <line x1="352" y1="200" x2="420" y2="200" stroke="#2e7d32" stroke-width="3"/>
+    <polygon points="432,200 416,192 416,208" fill="#2e7d32"/>
+    <text x="330" y="120" fill="#2e7d32" font-weight="bold">밖으로 25 kgf → 진공이 받음</text>
+    <text x="330" y="134" fill="#2e7d32">모멘트 1,500 vs 2,080 kgf·mm (여유 1.39)</text>
+  </g>
+
+  <!-- zoom inset: pin in grout -->
+  <g transform="translate(560,380)">
+    <rect x="0" y="0" width="400" height="200" fill="#fafafa" stroke="#999"/>
+    <text x="10" y="18" font-weight="bold">확대 (10 px = 1 mm): 핀–줄눈–타일 모서리</text>
+    <rect x="20" y="30" width="120" height="70" fill="#e9eef3" stroke="#9aa5b1"/>
+    <rect x="20" y="100" width="110" height="25" fill="#c9c2b8"/>
+    <rect x="20" y="125" width="120" height="60" fill="#e9eef3" stroke="#9aa5b1"/>
+    <!-- recess: grout face set back by d -->
+    <rect x="130" y="100" width="10" height="25" fill="#fafafa"/>
+    <path d="M140 125 q 15 0 15 -0" stroke="#9aa5b1" fill="none"/>
+    <!-- pin -->
+    <rect x="140" y="40" width="8" height="85" fill="#2b2b2b"/>
+    <rect x="140" y="117" width="12" height="8" fill="#2b2b2b"/>
+    <line x1="150" y1="100" x2="150" y2="125" stroke="#1f6feb"/>
+    <text x="156" y="116" fill="#1f6feb" font-size="11">d (0.5~1.0)</text>
+    <text x="160" y="60" fill="#333" font-size="11">핀 0.8 t (접촉 폭은 핀 두께가 아니라 d)</text>
+    <text x="160" y="76" fill="#333" font-size="11">d=0.8: 5.3 MPa / d=0.5: 8.4 MPa (패드당 30 kgf)</text>
+    <text x="160" y="92" fill="#333" font-size="11">타일 모서리 R1~2 → 선 접촉 가능, 치핑 시험 필요</text>
+    <text x="160" y="150" fill="#8a7d6b" font-size="11">줄눈이 타일 면과 평평(d=0)이면 핀 미작동</text>
+    <text x="160" y="166" fill="#8a7d6b" font-size="11">→ 일반 흡착 손잡이로 퇴화</text>
+  </g>
+
+  <!-- front view -->
+  <g transform="translate(560,70)">
+    <text x="0" y="0" font-weight="bold">정면 (0.6 px = 1 mm)</text>
+    <rect x="0" y="10" width="400" height="260" fill="#e9eef3" stroke="#9aa5b1"/>
+    <line x1="0" y1="190" x2="400" y2="190" stroke="#c9c2b8" stroke-width="3"/>
+    <line x1="200" y1="10" x2="200" y2="190" stroke="#c9c2b8" stroke-width="3"/>
+    <!-- pads: 120 x 140 -> 72 x 84, bottoms on grout line y=190 -->
+    <rect x="28" y="106" width="72" height="84" rx="4" fill="#d9dde2" stroke="#444"/>
+    <rect x="298" y="106" width="72" height="84" rx="4" fill="#d9dde2" stroke="#444"/>
+    <circle cx="64" cy="148" r="12" fill="#8c8c8c" stroke="#333"/>
+    <circle cx="334" cy="148" r="12" fill="#8c8c8c" stroke="#333"/>
+    <!-- bar 560 -> 336 wide, Ø32 -> 19 px, centre at pad centre +65mm -> y = 190-39 = 151 -->
+    <rect x="30" y="140" width="336" height="19" rx="9" fill="#bfc5cb" stroke="#333"/>
+    <text x="110" y="100" fill="#333" font-size="11">패드 120×140, 중심 간 450 · 바 560</text>
+    <text x="30" y="215" fill="#8a7d6b" font-size="11">두 패드 아랫단이 같은 가로 줄눈에 걸림 → 수평은 줄눈이 맞춤</text>
+    <text x="30" y="240" fill="#555" font-size="11">바닥에서 바 중심 650~850 (줄눈 피치 300·250 대응)</text>
+  </g>
+
+  <text x="20" y="600" fill="#666">법적 판단 아님. 모든 하중 수치는 시험 전 계산값. 금형 발주 전 타일 보드 3장(d=0/0.5/1.0) 시험 필요.</text>
+</svg>

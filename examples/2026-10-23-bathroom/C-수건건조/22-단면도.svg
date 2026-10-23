@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" font-family="Malgun Gothic, Apple SD Gothic Neo, sans-serif" font-size="12">
+  <rect width="1000" height="680" fill="#ffffff"/>
+  <text x="20" y="28" font-size="17" font-weight="bold">후보 C — 에어핀 바: 짧은 변 단면 (축척 2.5 px = 1 mm) · 치수는 20-디자인.md, 건조·원가 판단은 21-구현원가</text>
+  <text x="20" y="46" fill="#666">기존 수건걸이봉에 클램프로 끼움. 히터 0. 결론 "지금은 아님" — 문 개방·환풍기 가동이 전제, 5만 원 불가.</text>
+
+  <!-- wall -->
+  <rect x="60" y="70" width="60" height="560" fill="#e9eef3" stroke="#9aa5b1"/>
+  <text x="66" y="96" fill="#555" font-size="11">타일 벽</text>
+
+  <!-- existing towel bar: 70 mm from wall -> 175 px; dia 20 -> r 25 -->
+  <g>
+    <rect x="120" y="288" width="50" height="24" fill="#cfd4d8" stroke="#555"/>
+    <circle cx="295" cy="300" r="25" fill="#cfd4d8" stroke="#333" stroke-width="2"/>
+    <text x="125" y="330" fill="#555" font-size="11">기존 봉 Ø15~26</text>
+  </g>
+
+  <!-- rear fin saddles the bar: top width 32 -> 80 px, bottom 24 -> 60 px, height 85 -> 212 px; top R16 -->
+  <g fill="#f7f7f5" stroke="#333" stroke-width="1.5">
+    <path d="M255 300 Q255 260 295 260 Q335 260 335 300 L325 512 Q295 520 265 512 Z"/>
+    <!-- front fin: gap 45 -> 112 px between outer faces: rear fin right face x=335 -> front fin left face 447, width 80 -> 447..527 -->
+    <path d="M447 300 Q447 260 487 260 Q527 260 527 300 L517 512 Q487 520 457 512 Z"/>
+  </g>
+  <!-- bar inside rear fin re-drawn on top -->
+  <circle cx="295" cy="300" r="25" fill="#cfd4d8" stroke="#333" stroke-width="2"/>
+  <!-- internal air duct indication -->
+  <g stroke="#1f6feb" stroke-dasharray="4 3" fill="none">
+    <path d="M270 335 L270 495 M320 335 L320 495"/>
+    <path d="M462 290 L462 495 M512 290 L512 495"/>
+  </g>
+  <!-- slots low on both faces: two rows -->
+  <g fill="#1f6feb">
+    <rect x="261" y="455" width="4" height="12"/><rect x="261" y="480" width="4" height="12"/>
+    <rect x="327" y="455" width="4" height="12"/><rect x="327" y="480" width="4" height="12"/>
+    <rect x="453" y="455" width="4" height="12"/><rect x="453" y="480" width="4" height="12"/>
+    <rect x="519" y="455" width="4" height="12"/><rect x="519" y="480" width="4" height="12"/>
+  </g>
+
+  <!-- towels folded over fins: thickness 5-7 mm -> ~15 px -->
+  <g fill="none" stroke="#8d6e63" stroke-width="14" stroke-linecap="round" opacity="0.85">
+    <path d="M240 600 L242 300 Q245 243 295 243 Q345 243 348 300 L350 600"/>
+    <path d="M432 600 L434 300 Q437 243 487 243 Q537 243 540 300 L542 600"/>
+  </g>
+  <text x="560" y="598" fill="#8d6e63" font-size="11">수건 2장(40×80, 220 g)이 핀 위에 접혀 걸침</text>
+
+  <!-- airflow arrows between towel inner face and fin -->
+  <g stroke="#1f6feb" fill="#1f6feb">
+    <line x1="252" y1="500" x2="252" y2="565" stroke-width="2"/><polygon points="252,577 246,565 258,565"/>
+    <line x1="338" y1="500" x2="338" y2="565" stroke-width="2"/><polygon points="338,577 332,565 344,565"/>
+    <line x1="444" y1="500" x2="444" y2="565" stroke-width="2"/><polygon points="444,577 438,565 450,565"/>
+    <line x1="530" y1="500" x2="530" y2="565" stroke-width="2"/><polygon points="530,577 524,565 536,565"/>
+  </g>
+  <text x="560" y="470" fill="#1f6feb" font-size="11">양면 슬롯(총 ≈1,900 mm²) 하향 토출 1.2~1.5 m/s</text>
+  <text x="560" y="486" fill="#1f6feb" font-size="11">풍량 8~10 m³/h — 수건 안쪽 두 면 사이로만 바람</text>
+  <text x="560" y="502" fill="#c0392b" font-size="11">핀 아래(85 밑)에서 젖은 두 겹이 붙으면 출구 막힘 → 목업 1순위</text>
+
+  <!-- clamp under bar: thumbscrew M6 -->
+  <g>
+    <path d="M275 325 L275 350 L315 350 L315 325" fill="none" stroke="#333" stroke-width="2"/>
+    <rect x="289" y="350" width="12" height="22" fill="#9aa0a6" stroke="#333"/>
+    <ellipse cx="295" cy="378" rx="16" ry="5" fill="#9aa0a6" stroke="#333"/>
+    <text x="125" y="372" fill="#333" font-size="10">C클램프 ×2</text>
+    <text x="125" y="386" fill="#333" font-size="10">M6 손나사·실리콘 턱</text>
+  </g>
+
+  <!-- wall support foot: Ø12 rod from end cap back to wall, pad 30x30x5 -->
+  <g>
+    <rect x="120" y="212" width="14" height="76" fill="#bdbdbd" stroke="#555"/>
+    <rect x="134" y="244" width="110" height="14" rx="7" fill="#9aa0a6" stroke="#333"/>
+    <text x="125" y="108" fill="#333" font-size="11">벽 지지발 Ø12, 40~95 신축, 실리콘 패드 30×30×5 (고정 아님, 기댐)</text>
+  </g>
+
+  <!-- end cap region (dashed) with blower, button, USB-C -->
+  <g>
+    <rect x="225" y="118" width="320" height="100" rx="10" fill="none" stroke="#777" stroke-dasharray="6 4"/>
+    <text x="235" y="138" fill="#555" font-size="11">끝단 캡(양쪽 60×125×95, 단면 뒤): 5 V 5015 원심 블로어 ×2(합 ≤5 W), MCU, 습도센서 2</text>
+    <text x="235" y="154" fill="#555" font-size="11">버튼 1(짧게 시작/정지, 길게 야간), LED 링 1</text>
+    <text x="235" y="170" fill="#555" font-size="11">USB-C 5 V/2 A 입력(하면, 실리콘 덮개) → 납작 케이블 2 m(2.5×5)로 문 밑 통과</text>
+    <text x="235" y="186" fill="#555" font-size="11">핀 하단·캡 하면 Ø3 배수 구멍 ×4, IPX4 지향</text>
+    <text x="235" y="208" fill="#555" font-size="11">핀 내부 2° 경사 → 물 고임 없이 하단 구멍으로</text>
+  </g>
+
+  <!-- dimensions -->
+  <g stroke="#1f6feb" fill="#1f6feb">
+    <!-- wall to bar centre 70 -->
+    <line x1="120" y1="560" x2="295" y2="560"/>
+    <line x1="120" y1="554" x2="120" y2="566"/><line x1="295" y1="554" x2="295" y2="566"/>
+    <text x="190" y="576" font-size="11">60~80</text>
+    <!-- fin gap 45 -->
+    <line x1="335" y1="420" x2="447" y2="420"/>
+    <line x1="335" y1="414" x2="335" y2="426"/><line x1="447" y1="414" x2="447" y2="426"/>
+    <text x="372" y="436" font-size="11">45 (공기층 ≥30)</text>
+    <!-- fin top width 32 -->
+    <line x1="255" y1="236" x2="335" y2="236"/>
+    <text x="283" y="232" font-size="11">32</text>
+    <line x1="265" y1="528" x2="325" y2="528"/>
+    <text x="287" y="542" font-size="11">24</text>
+    <!-- fin height 85 -->
+    <line x1="560" y1="260" x2="560" y2="512" stroke-dasharray="3 3"/>
+    <text x="566" y="390" font-size="11">85</text>
+    <!-- protrusion from wall to front fin outer face: 160~180 -->
+    <line x1="120" y1="610" x2="527" y2="610"/>
+    <line x1="527" y1="604" x2="527" y2="616"/>
+    <text x="300" y="625" font-size="11">벽에서 앞 핀 바깥면까지 160~180 (3장 모듈 240~260)</text>
+  </g>
+
+  <!-- notes box -->
+  <g transform="translate(600,290)">
+    <rect x="0" y="0" width="380" height="160" fill="#fafafa" stroke="#999"/>
+    <text x="10" y="20" font-weight="bold">건조 시간 (21-구현원가 계산, 실측 전)</text>
+    <text x="10" y="40" font-size="11">25 ℃·RH 65%: 1장 ≈2.4~3 h, 2장 ≈4.8~6 h (디자인 "4 h"는 미달)</text>
+    <text x="10" y="56" font-size="11">RH 80%: 2장 ≈9 h / RH 85%: ≈12 h / 밀폐 RH 95%: ≈10 h(1장)</text>
+    <text x="10" y="72" font-size="11">ΔRH 대기 모드는 "안 마르면 멈춤" — 밀폐 욕실을 풀지 않음</text>
+    <text x="10" y="96" font-weight="bold" fill="#c0392b">원가·특허</text>
+    <text x="10" y="114" font-size="11" fill="#c0392b">5,000개 총원가 ≈$31(≈44,000원, 추정) → 5만 원 불가, 현실 8.9~9.9만 원</text>
+    <text x="10" y="130" font-size="11" fill="#c0392b">히터 없는 팬+UV 수건걸이 등록 2건 생존(지코빌·누리온) → "히터 없음"은 특허 거리 아님</text>
+    <text x="10" y="146" font-size="11" fill="#c0392b">핀은 사출 1피스 불가 → 플라스틱 프로파일 압출 + 슬롯 펀칭 권장</text>
+  </g>
+
+  <text x="20" y="662" fill="#666">법적 판단 아님. 베낌: 봉 부착 송풍(Whoosh·신세훈), 양측 하향 토출(신세훈·지코빌). 차별 주장: 핀=간격재 겸 풍로, 클램프+벽 지지발, ΔRH 종료(선행 미확인).</text>
+</svg>
