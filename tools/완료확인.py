@@ -33,12 +33,30 @@ ROOT_REQUIRED = ["00-질문.md"]
 STAGE1_REQUIRED = ["01-영역.md", "02-점수표.md"]
 CANDIDATE_REQUIRED = ["10-기존해법.md", "11-왜지금.md", "20-디자인.md", "21-구현원가.md",
                       "29-출처확인.md", "30-검증.md", "40-최종보고서.md"]
+# /discover 실행 (특허 지도 → 제품 대조 → 발상 → 검증 → 제안서)
+DISCOVER_REQUIRED = ["50-특허지도.md", "51-제품대조.md", "60-제안.md",
+                     "29-출처확인.md", "30-검증.md", "70-제안서.md"]
+DISCOVER_PROPOSALS = 3
 # 점수표의 세 등급 + 보고서에서 뺀 항목을 기록한 행("삭제"/"제외")도 등급이 붙은 것으로 본다
 GRADE_RE = re.compile(r"확인됨|추정|미확인|삭제|제외")
 CANDIDATE_DIR_RE = re.compile(r"^[A-Z]-")
 
 # "웹검색 20회", "웹검색 20/20(상한)", "웹검색 최대 10회" 모두 첫 숫자를 사용량으로 읽는다
 SEARCH_RE = re.compile(r"웹\s?검색\s*(?:최대\s*)?(\d+)\s*(?:회|/)")
+# "KIPRIS 12회", "KIPRIS 호출 14/14", "KIPRIS 20/20"
+KIPRIS_RE = re.compile(r"KIPRIS\s*(?:호출\s*)?(\d+)\s*(?:회|/)")
+CAPS["kipris_practical"] = 10   # 실용 모드(기본) 기존 해법의 KIPRIS 호출
+CAPS["kipris_patent"] = 20      # --특허 모드
+
+
+def run_mode(run: Path) -> str:
+    """00-질문.md 에 '모드: 특허' 또는 '--특허' 가 있으면 '특허', 아니면 '실용'."""
+    q = run / "00-질문.md"
+    if q.exists():
+        t = head(q, 40)
+        if re.search(r"모드\s*[:：]\s*특허|--특허", t):
+            return "특허"
+    return "실용"
 ASIDE_RE = re.compile(r"Aside\s*(?:작업\s*)?(\d+)\s*회?")
 
 
@@ -54,6 +72,58 @@ def count_in_head(path: Path, rx: re.Pattern):
     """머리글에서 'N회'를 찾아 가장 큰 N을 돌려준다. 없으면 None."""
     nums = [int(m.group(1)) for m in rx.finditer(head(path))]
     return max(nums) if nums else None
+
+
+def is_discover(run: Path) -> bool:
+    return (run / "50-특허지도.md").exists() or (run / "70-제안서.md").exists()
+
+
+def check_discover(run: Path):
+    """/discover 실행: 산출물 유무, 담당별 상한, 제안서 구조. → (rows, problems, stats)"""
+    problems = []
+    for name in ROOT_REQUIRED + DISCOVER_REQUIRED:
+        if not (run / name).exists():
+            problems.append(f"없음: {name}")
+    rows = []
+    for name in ("50-특허지도.md", "51-제품대조.md"):
+        f = run / name
+        if not f.exists():
+            continue
+        n = count_in_head(f, SEARCH_RE)
+        verdict = "미기재" if n is None else ("초과" if n > CAPS["stage2_search"] else "OK")
+        rows.append((name, "웹검색", n, CAPS["stage2_search"], verdict))
+        if verdict == "초과":
+            problems.append(f"상한 초과: {name} 웹검색 {n}회 > {CAPS['stage2_search']}")
+    f = run / "60-제안.md"
+    if f.exists():
+        n = count_in_head(f, SEARCH_RE)
+        verdict = "미기재" if n is None else ("초과" if n > 0 else "OK")
+        rows.append(("60-제안.md", "웹검색(발상은 0)", n, 0, verdict))
+        if verdict == "초과":
+            problems.append(f"상한 초과: 60-제안.md 발상 담당이 검색 {n}회 (0회여야 함)")
+    diggers = sorted(run.glob("12-보조-*.md"))
+    verdict = "초과" if len(diggers) > CAPS["digger_per_candidate"] else "OK"
+    rows.append(("12-보조-*", "보조 호출", len(diggers), CAPS["digger_per_candidate"], verdict))
+    if verdict == "초과":
+        problems.append(f"상한 초과: 보조 {len(diggers)}회 > {CAPS['digger_per_candidate']}")
+    stats = {"제안": 0, "미확인(발상)": 0, "근거행": 0, "등급없는행": 0}
+    p = run / "70-제안서.md"
+    if p.exists():
+        text = p.read_text(encoding="utf-8")
+        stats["제안"] = len(re.findall(r"(?m)^###\s*제안\s*\d", text))
+        stats["미확인(발상)"] = text.count("미확인(발상)")
+        evid = table_rows(section(text, "7."))
+        stats["근거행"] = len(evid)
+        stats["등급없는행"] = len([r for r in evid if not GRADE_RE.search(r)])
+        if stats["제안"] != DISCOVER_PROPOSALS:
+            problems.append(f"70-제안서: 제안이 {stats['제안']}개 (기준 {DISCOVER_PROPOSALS})")
+        if stats["미확인(발상)"] == 0:
+            problems.append("70-제안서: '미확인(발상)' 등급 표기가 없음")
+        if not evid:
+            problems.append("70-제안서: 근거 목록(7절) 표가 비어 있음")
+        if stats["등급없는행"]:
+            problems.append(f"70-제안서: 근거 목록 {stats['등급없는행']}행에 등급 없음")
+    return rows, problems, stats
 
 
 def check_files(run: Path):
@@ -88,6 +158,8 @@ def check_caps(run: Path, stage1: bool, candidates):
             rows.append((f.name, "웹검색", n, CAPS["stage1_search"], verdict))
             if verdict == "초과":
                 problems.append(f"상한 초과: {f.name} 웹검색 {n}회 > {CAPS['stage1_search']}")
+    mode = run_mode(run)
+    kipris_cap = CAPS["kipris_patent"] if mode == "특허" else CAPS["kipris_practical"]
     for c in candidates:
         for name in ("10-기존해법.md", "11-왜지금.md", "20-디자인.md", "21-구현원가.md"):
             f = c / name
@@ -98,6 +170,13 @@ def check_caps(run: Path, stage1: bool, candidates):
             rows.append((f"{c.name}/{name}", "웹검색", n, CAPS["stage2_search"], verdict))
             if verdict == "초과":
                 problems.append(f"상한 초과: {c.name}/{name} 웹검색 {n}회 > {CAPS['stage2_search']}")
+        f = c / "10-기존해법.md"
+        if f.exists():
+            n = count_in_head(f, KIPRIS_RE)
+            verdict = "미기재" if n is None else ("초과" if n > kipris_cap else "OK")
+            rows.append((f"{c.name}/10-기존해법.md", f"KIPRIS({mode} 모드)", n, kipris_cap, verdict))
+            if verdict == "초과":
+                problems.append(f"상한 초과: {c.name}/10-기존해법.md KIPRIS {n}회 > {kipris_cap} ({mode} 모드)")
         diggers = sorted(c.glob("12-보조-*.md"))
         verdict = "초과" if len(diggers) > CAPS["digger_per_candidate"] else "OK"
         rows.append((f"{c.name}/12-보조-*", "보조 호출", len(diggers), CAPS["digger_per_candidate"], verdict))
@@ -196,6 +275,23 @@ def main():
     if not run.is_dir():
         print(f"폴더가 아님: {run}", file=sys.stderr)
         sys.exit(2)
+    if is_discover(run):
+        rows, problems, stats = check_discover(run)
+        L = [f"# 완료 확인 (자동, /discover): {run.name}", "",
+             f"위반 {len(problems)}건 · 제안 {stats['제안']}개 · '미확인(발상)' 표기 {stats['미확인(발상)']}회 · "
+             f"근거 목록 {stats['근거행']}행(등급 없음 {stats['등급없는행']})", "",
+             "## 1. 산출물·상한·제안서"]
+        L += [f"- {p}" for p in problems] or ["- 위반 없음"]
+        L += ["", "| 파일 | 항목 | 값 | 상한 | 판정 |", "|---|---|---|---|---|"]
+        for f, item, val, cap, verdict in rows:
+            L.append(f"| {f} | {item} | {'-' if val is None else val} | {cap} | {verdict} |")
+        report = "\n".join(L) + "\n"
+        if args.out:
+            Path(args.out).write_text(report, encoding="utf-8")
+            print(f"저장: {args.out}", file=sys.stderr)
+        else:
+            print(report)
+        sys.exit(1 if (args.strict and problems) else 0)
     stage1, candidates, file_problems = check_files(run)
     cap_rows, cap_problems = check_caps(run, stage1, candidates)
     report_stats, report_problems = {}, []

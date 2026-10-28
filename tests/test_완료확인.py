@@ -133,6 +133,18 @@ class Caps(unittest.TestCase):
             _, problems = mod.check_caps(d, stage1, cands)
             self.assertIn("상한 초과: A-후보 Aside 7회 > 6", problems)
 
+    def test_kipris_cap_depends_on_mode(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            c = make_run(d)
+            (c / "10-기존해법.md").write_text("# 기존 해법\n조사일, 웹검색 20회, KIPRIS 14회, Aside 0회\n", encoding="utf-8")
+            stage1, cands, _ = mod.check_files(d)
+            _, problems = mod.check_caps(d, stage1, cands)      # 00-질문에 모드 표기 없음 → 실용(10)
+            self.assertIn("상한 초과: A-후보/10-기존해법.md KIPRIS 14회 > 10 (실용 모드)", problems)
+            (d / "00-질문.md").write_text("# 질문\n- 모드: 특허\n", encoding="utf-8")
+            _, problems = mod.check_caps(d, stage1, cands)      # 특허 모드(20) → OK
+            self.assertEqual(problems, [])
+
     def test_header_without_count_is_marked_not_recorded(self):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
@@ -169,6 +181,75 @@ class Report(unittest.TestCase):
             c = make_run(Path(d), report=bad)
             _, problems = mod.check_report(c / "40-최종보고서.md")
             self.assertTrue(any("가정표" in p for p in problems))
+
+
+PROPOSAL_OK = """# 제안서: X
+
+## 3. 제안
+### 제안 1. 가
+- 등급: 미확인(발상)
+### 제안 2. 나
+- 등급: 미확인(발상)
+### 제안 3. 다
+- 등급: 미확인(발상)
+
+## 7. 근거 목록
+| 번호 | 주장 | 출처 | 등급 | 검증 판정 |
+|---|---|---|---|---|
+| 1 | 특허 A 소멸 | https://doi.org/10.8080/1020250013141 | 추정 | 뒷받침됨 |
+"""
+
+
+def make_discover(d: Path, *, proposals_text=PROPOSAL_OK, ideator_search=0, missing=()):
+    (d / "00-질문.md").write_text("# 질문\n", encoding="utf-8")
+    (d / "50-특허지도.md").write_text("# 특허 지도\n사용 횟수(KIPRIS 12 / 웹검색 18회 / 청구항 도구 9건)\n", encoding="utf-8")
+    (d / "51-제품대조.md").write_text("# 제품 대조\n웹검색 20/20\n", encoding="utf-8")
+    (d / "60-제안.md").write_text(f"# 제안\n작성일, 읽은 파일, 웹검색 {ideator_search}회.\n", encoding="utf-8")
+    (d / "29-출처확인.md").write_text("# 출처 확인\n", encoding="utf-8")
+    (d / "30-검증.md").write_text("# 검증\n", encoding="utf-8")
+    (d / "70-제안서.md").write_text(proposals_text, encoding="utf-8")
+    for m in missing:
+        (d / m).unlink()
+
+
+class Discover(unittest.TestCase):
+    def test_clean_discover_run(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            make_discover(d)
+            self.assertTrue(mod.is_discover(d))
+            rows, problems, stats = mod.check_discover(d)
+            self.assertEqual(problems, [])
+            self.assertEqual(stats["제안"], 3)
+            self.assertEqual(stats["근거행"], 1)
+
+    def test_ideator_search_and_missing_files_are_flagged(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            make_discover(d, ideator_search=2, missing=("51-제품대조.md",))
+            _, problems, _ = mod.check_discover(d)
+            self.assertIn("없음: 51-제품대조.md", problems)
+            self.assertTrue(any("발상 담당이 검색 2회" in p for p in problems))
+
+    def test_wrong_proposal_count_is_flagged(self):
+        bad = PROPOSAL_OK.replace("### 제안 3. 다\n- 등급: 미확인(발상)\n", "")
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            make_discover(d, proposals_text=bad)
+            _, problems, stats = mod.check_discover(d)
+            self.assertEqual(stats["제안"], 2)
+            self.assertTrue(any("제안이 2개" in p for p in problems))
+
+    def test_main_prints_discover_report(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            make_discover(d)
+            argv = ["완료확인.py", str(d), "--out", str(d / "51-완료확인.md"), "--strict"]
+            with mock.patch.object(sys, "argv", argv), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as cm:
+                    mod.main()
+            self.assertEqual(cm.exception.code, 0)
+            self.assertIn("/discover", (d / "51-완료확인.md").read_text(encoding="utf-8"))
 
 
 class EndToEnd(unittest.TestCase):
