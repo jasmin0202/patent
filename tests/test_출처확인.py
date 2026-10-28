@@ -7,6 +7,7 @@ tools/출처확인.py 단위·통합 테스트. 네트워크를 쓰지 않는다
 
 import importlib.util
 import io
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -263,6 +264,58 @@ class EndToEnd(unittest.TestCase):
                     mod.main()
             self.assertEqual(cm.exception.code, 0)
             self.assertIn("1020260138772 | - | 링크 없음", out.read_text(encoding="utf-8"))
+
+    def test_cli_reads_nested_patent_only_file(self):
+        """별도 프로세스에서 실제 CLI와 UTF-8 파일 입출력을 확인한다."""
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            candidate = root / "A-후보" / "보조"
+            candidate.mkdir(parents=True)
+            source = candidate / "12-특허.md"
+            source.write_text("# 특허 조사\nKR102345678B1 링크 없음\n", encoding="utf-8")
+            # 이전 결과는 재귀 수집에서도 다시 검사하지 않아야 한다.
+            (candidate / "29-출처확인.md").write_text(
+                "KR999999999B1\n", encoding="utf-8")
+            (candidate / "30-검증.md").write_text(
+                "US999999999B1\n", encoding="utf-8")
+            out = root / "29-출처확인.md"
+            result = subprocess.run(
+                [sys.executable, "-I", str(ROOT / "tools" / "출처확인.py"),
+                 str(root), "--out", str(out)],
+                cwd=d, capture_output=True, encoding="utf-8", timeout=15,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = out.read_text(encoding="utf-8")
+            self.assertIn("파일 1개 · URL 0개", report)
+            self.assertIn("| 12-특허.md:2 | KR102345678B1 | - | 링크 없음", report)
+            self.assertNotIn("KR999999999B1", report)
+            self.assertNotIn("US999999999B1", report)
+
+    def test_url_limit_does_not_skip_patent_checks(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            source = root / "10-기존해법.md"
+            source.write_text(
+                "후기 https://open.example.com/post\n"
+                "KR101234567B1 https://patents.google.com/patent/US991234567B1/en\n"
+                "KR999999999B1 링크 없음\n", encoding="utf-8")
+            out = root / "29-출처확인.md"
+            argv = ["출처확인.py", str(source), "--max", "1", "--out", str(out)]
+            with mock.patch.object(mod, "fetch", side_effect=self.fake_fetch) as fetch, \
+                 mock.patch.object(sys, "argv", argv), \
+                 redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as cm:
+                    mod.main()
+            self.assertEqual(cm.exception.code, 0)
+            fetch.assert_called_once_with("https://open.example.com/post", 15.0)
+            report = out.read_text(encoding="utf-8")
+            patent_rows = [line for line in report.splitlines()
+                           if line.startswith("| 10-기존해법.md:")]
+            self.assertEqual(len(patent_rows), 2)
+            self.assertIn("KR101234567B1", patent_rows[0])
+            self.assertIn("불일치", patent_rows[0])
+            self.assertIn("KR999999999B1 | - | 링크 없음", patent_rows[1])
+            self.assertIn("1개 URL은 확인하지 않았다", report)
 
 
 if __name__ == "__main__":
