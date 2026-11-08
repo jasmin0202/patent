@@ -33,12 +33,21 @@ ROOT_REQUIRED = ["00-질문.md"]
 STAGE1_REQUIRED = ["01-영역.md", "02-점수표.md"]
 CANDIDATE_REQUIRED = ["10-기존해법.md", "11-왜지금.md", "20-디자인.md", "21-구현원가.md",
                       "29-출처확인.md", "30-검증.md", "40-최종보고서.md"]
+# 2026-11-08 개편 뒤 실행(00-질문.md에 "야심 수준"이 적힌 실행)은 원인 분석·발상 파일도 필요하다
+CANDIDATE_REQUIRED_V2 = ["05-원인분석.md", "15-발상.md"]
+CAPS["cause_search"] = 10   # 2단계 원인 분석 웹검색
+
+
+def run_has_ambition(run: Path) -> bool:
+    """00-질문.md 에 '야심 수준' 또는 '--야심' 이 있으면 개편 뒤 실행."""
+    q = run / "00-질문.md"
+    return q.exists() and re.search(r"야심\s*수준|--야심", head(q, 40)) is not None
 # /discover 실행 (특허 지도 → 제품 대조 → 발상 → 검증 → 제안서)
 DISCOVER_REQUIRED = ["50-특허지도.md", "51-제품대조.md", "60-제안.md",
                      "29-출처확인.md", "30-검증.md", "70-제안서.md"]
 DISCOVER_PROPOSALS = 3
 # 점수표의 세 등급 + 보고서에서 뺀 항목을 기록한 행("삭제"/"제외")도 등급이 붙은 것으로 본다
-GRADE_RE = re.compile(r"확인됨|추정|미확인|삭제|제외")
+GRADE_RE = re.compile(r"확인됨|추정|미확인|가설|삭제|제외")
 CANDIDATE_DIR_RE = re.compile(r"^[A-Z]-")
 
 # "웹검색 20회", "웹검색 20/20(상한)", "웹검색 최대 10회" 모두 첫 숫자를 사용량으로 읽는다
@@ -141,8 +150,9 @@ def check_files(run: Path):
     # 후보 폴더가 없으면(구체적 아이디어로 2단계부터 시작한 실행) 실행 폴더 자체가 유일한 후보다
     if not candidates and any(run.glob("1[01]-*.md")):
         candidates = [run]
+    required = CANDIDATE_REQUIRED + (CANDIDATE_REQUIRED_V2 if run_has_ambition(run) else [])
     for c in candidates:
-        for name in CANDIDATE_REQUIRED:
+        for name in required:
             if not (c / name).exists():
                 problems.append(f"없음: {c.name}/{name}")
     return stage1, candidates, problems
@@ -170,6 +180,19 @@ def check_caps(run: Path, stage1: bool, candidates):
             rows.append((f"{c.name}/{name}", "웹검색", n, CAPS["stage2_search"], verdict))
             if verdict == "초과":
                 problems.append(f"상한 초과: {c.name}/{name} 웹검색 {n}회 > {CAPS['stage2_search']}")
+        f = c / "05-원인분석.md"
+        if f.exists():
+            n = count_in_head(f, SEARCH_RE)
+            verdict = "미기재" if n is None else ("초과" if n > CAPS["cause_search"] else "OK")
+            rows.append((f"{c.name}/05-원인분석.md", "웹검색", n, CAPS["cause_search"], verdict))
+            if verdict == "초과":
+                problems.append(f"상한 초과: {c.name}/05-원인분석.md 웹검색 {n}회 > {CAPS['cause_search']}")
+        f = c / "15-발상.md"
+        if f.exists():
+            n = count_in_head(f, SEARCH_RE)
+            if n:
+                rows.append((f"{c.name}/15-발상.md", "웹검색", n, 0, "초과"))
+                problems.append(f"상한 초과: {c.name}/15-발상.md 웹검색 {n}회 > 0 (발상은 조사 금지)")
         f = c / "10-기존해법.md"
         if f.exists():
             n = count_in_head(f, KIPRIS_RE)
@@ -177,7 +200,8 @@ def check_caps(run: Path, stage1: bool, candidates):
             rows.append((f"{c.name}/10-기존해법.md", f"KIPRIS({mode} 모드)", n, kipris_cap, verdict))
             if verdict == "초과":
                 problems.append(f"상한 초과: {c.name}/10-기존해법.md KIPRIS {n}회 > {kipris_cap} ({mode} 모드)")
-        diggers = sorted(c.glob("12-보조-*.md"))
+        # 청구항 도구 출력(12-보조-*청구항.md)은 담당이 직접 돌린 것이라 보조(source-digger) 호출로 세지 않는다
+        diggers = sorted(p for p in c.glob("12-보조-*.md") if not p.stem.endswith("청구항"))
         verdict = "초과" if len(diggers) > CAPS["digger_per_candidate"] else "OK"
         rows.append((f"{c.name}/12-보조-*", "보조 호출", len(diggers), CAPS["digger_per_candidate"], verdict))
         if verdict == "초과":
